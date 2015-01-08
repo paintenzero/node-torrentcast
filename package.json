@@ -1,0 +1,11 @@
+{
+  "name": "torrentcast",
+  "description": "A software to cast torrent file to Chromecast",
+  "dependencies": {
+    "express": "~> 4.10",
+    "rc": "~> 0.5",
+    "optimist": "~> 0.6",
+    "jade": "~> 1.8",
+    "q": "~> 1.1"
+  }
+}
