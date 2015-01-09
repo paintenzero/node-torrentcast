@@ -3,8 +3,7 @@ html(lang="en")
   head
     title= PeerCast
   body
-    h1 Torrent files
+    h1= torrentname + ' info'
     ul
       each file in files
-        li
-          a(href=file.link)= file.name
+        li= file.name + ' (' + file.size + ')'

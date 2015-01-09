@@ -1,8 +1,7 @@
 var express = require('express');
 var rc = require('rc');
 var optimist = require('optimist');
-var jade = require('jade');
-var helper = require('./helper').helper;
+var routes = require('./routes').routes;
 
 process.title = 'peercast';
 
@@ -18,6 +17,7 @@ var argv = rc('peercast', {
   .alias('h', 'help').describe('h', 'shows this usage text').boolean('h')
   .argv
   );
+routes.setArgv(argv);
 
 //If user requested help instructions
 if (argv.h) {
@@ -30,20 +30,8 @@ if (argv.h) {
  */
 var app = express();
 
-app.get('/', function (req, res) {
-  helper.getTorrentFiles(argv.folder).then(
-    function (files) {
-      var html = jade.renderFile('templates/files.jade', {files: files});
-      res.write(html);
-      res.end();
-    },
-    function (err) {
-      console.err('Error reading file: %s', err);
-      res.status(500);
-      res.end();
-    }
-  );
-});
+app.get('/', routes.files);
+app.get('/info/:file', routes.torrentInfo);
 
 var server = app.listen(argv.port, function () {
   console.log('Server started! Please, visit http://localhost:%d/ with your Chrome browser!', argv.port);

@@ -6,7 +6,8 @@
     "rc": "~> 0.5",
     "optimist": "~> 0.6",
     "jade": "~> 1.8",
-    "q": "~> 1.1"
+    "q": "~> 1.1",
+    "torrent-stream": "~> 0.16"
   },
   "repository": {
     "type": "git",
