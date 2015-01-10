@@ -2,8 +2,11 @@ doctype html
 html(lang="en")
   head
     title= PeerCast
+    meta(charset="utf-8")
   body
     h1= torrentname + ' info'
     ul
       each file in files
-        li= file.name + ' (' + file.size + ')'
+        li
+          a(href=file.link)= file.name 
+          span= ' (' + file.size + ')'

@@ -2,6 +2,9 @@ var Q = require('q');
 var fs = require('fs');
 var torrentStream = require('torrent-stream');
 var path = require('path');
+var mime = require('mime');
+
+var torrentEngines = {};
 
 /**
  * Returns human readable file size
@@ -41,6 +44,53 @@ function isVideoExtension(ext) {
 }
 
 
+/**
+ *
+ */
+function getTorrentBuffer(torrent) {
+  return Q.nfapply(fs.readFile, [torrent]);
+}
+/**
+ *
+ */
+function getEngineForTorrentFile(torrentFileName) {
+  var deferred = Q.defer();
+  if (torrentEngines[torrentFileName] === undefined) {
+    getTorrentBuffer(torrentFileName).done(
+      function (buf) {
+        var engine = torrentStream(buf);
+        torrentEngines[torrentFileName] = engine;
+        engine.on('ready', function () {
+          engine.files.forEach(function (file) {
+            file.deselect();
+          });
+          engine.sortedVideoFiles = engine.files.filter(function (f) {
+            var ext = path.extname(f.name);
+            return isVideoExtension(ext);
+          });
+          engine.sortedVideoFiles.sort(function (a, b) {
+            return a.name.localeCompare(b.name);
+          });
+          deferred.resolve(engine);
+        });
+      },
+      function (err) {
+        deferred.reject(err);
+      }
+    );
+  } else {
+    if (torrentEngines[torrentFileName].files.length === 0) {
+      torrentEngines[torrentFileName].on('ready', function () {
+        deferred.resolve(torrentEngines[torrentFileName]);
+      });
+    } else {
+      deferred.resolve(torrentEngines[torrentFileName]);
+    }
+  }
+  return deferred.promise;
+}
+
+
 var helper = {};
 /**
  * Returns torrent files list from given folder
@@ -70,31 +120,62 @@ helper.getTorrentFiles = function (dir) {
 };
 /**
  * Returns info for given torrent file
+ * @param <string> torrent filename with path
+ * @return {files:[
+            { 
+              name: <string>,
+              path: <string>,
+              length: <int>
+            }, ...
+           ]}
  */
-helper.getTorrentInfo = function (file) {
+helper.getTorrentInfo = function (tfile) {
   var deferred = Q.defer();
-  Q.nfapply(fs.readFile, [file]).done(
-    function (buffer) {
-      var engine = torrentStream(buffer);
-      engine.on('ready', function () {
-        var ret = {files: []}, ext;
-        engine.files.forEach(function (file) {
-          ext = path.extname(file.name);
-          if (isVideoExtension(ext)) {
-            ret.files.push({
-              name: path.basename(file.name, ext),
-              size: humanFileSize(file.length, false)
-            });
-          }
+  getEngineForTorrentFile(tfile).done(
+    function (engine) {
+      console.log('engine received');
+      var ret = {files: []}, i, file, ext;
+      for (i = 0; i < engine.sortedVideoFiles.length; ++i) {
+        file = engine.sortedVideoFiles[i];
+        ext = path.extname(file.name);
+        ret.files.push({
+          name: path.basename(file.name, ext),
+          size: humanFileSize(file.length, false),
+          index: i,
+          link: '/probe/' + path.basename(tfile) + '/' + file.name
         });
-        ret.files.sort(function (a, b) {
-          return a.name.localeCompare(b.name);
-        });
-        deferred.resolve(ret);
+      }
+      deferred.resolve(ret);
+    },
+    function (err) {
+      deferred.reject(err);
+    }
+  );
+  return deferred.promise;
+};
+/**
+ * Returns readonly stream for file in torrent
+ */
+helper.getTorrentFileStream = function (torrent, filename) {
+  var deferred = Q.defer();
+  getEngineForTorrentFile(torrent).done(
+    function (engine) {
+      var resolved = false;
+      engine.files.forEach(function (tfile) {
+        if (tfile.name === filename) {
+          resolved = true;
+          deferred.resolve(tfile.createReadStream());
+        }
       });
+      if (!resolved) {
+        deferred.reject(new Error('File not found!'));
+      }
+    },
+    function (err) { //If reading .torrent was errorneous
+      deferred.reject(err);
     }
   );
   return deferred.promise;
 };
 
-exports.helper = helper;
+module.exports = helper;
