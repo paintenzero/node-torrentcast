@@ -3,8 +3,9 @@ var fs = require('fs');
 var torrentStream = require('torrent-stream');
 var path = require('path');
 var mime = require('mime');
+var ffmpeg = require('fluent-ffmpeg');
 
-var torrentEngines = {};
+var torrentEngines = {}, argv = {};
 
 /**
  * Returns human readable file size
@@ -22,6 +23,23 @@ function humanFileSize(bytes, si) {
     ++u;
   } while (bytes >= thresh);
   return bytes.toFixed(1) + ' ' + units[u];
+}
+/**
+ * Returns human readable movie duration
+ */
+function humanDuration(secs) {
+  secs = Math.floor(secs);
+  if (secs < 60) {
+    return secs + ' sec';
+  }
+  var mins = Math.floor(secs / 60);
+  secs -= mins * 60;
+  if (mins < 60) {
+    return mins + ' min ' + secs + ' sec';
+  }
+  var hours = Math.floor(mins / 60);
+  mins -= hours * 60;
+  return hours + ' h ' + mins + ' min ' + secs + ' sec';
 }
 /**
  * Returns true if needle is in haystack
@@ -45,7 +63,7 @@ function isVideoExtension(ext) {
 
 
 /**
- *
+ * Returns buffer
  */
 function getTorrentBuffer(torrent) {
   return Q.nfapply(fs.readFile, [torrent]);
@@ -55,11 +73,14 @@ function getTorrentBuffer(torrent) {
  */
 function getEngineForTorrentFile(torrentFileName) {
   var deferred = Q.defer();
-  if (torrentEngines[torrentFileName] === undefined) {
+  var torrentBaseName = path.basename(torrentFileName);
+  if (torrentEngines[torrentBaseName] === undefined) {
     getTorrentBuffer(torrentFileName).done(
       function (buf) {
-        var engine = torrentStream(buf);
-        torrentEngines[torrentFileName] = engine;
+        var engine = torrentStream(buf, {
+          path: argv.tmp + path.sep + torrentBaseName
+        });
+        torrentEngines[torrentBaseName] = engine;
         engine.on('ready', function () {
           engine.files.forEach(function (file) {
             file.deselect();
@@ -79,19 +100,50 @@ function getEngineForTorrentFile(torrentFileName) {
       }
     );
   } else {
-    if (torrentEngines[torrentFileName].files.length === 0) {
-      torrentEngines[torrentFileName].on('ready', function () {
-        deferred.resolve(torrentEngines[torrentFileName]);
+    var anEngine = torrentEngines[torrentBaseName];
+    if (anEngine.files.length === 0) {
+      anEngine.on('ready', function () {
+        deferred.resolve(anEngine);
       });
     } else {
-      deferred.resolve(torrentEngines[torrentFileName]);
+      deferred.resolve(anEngine);
     }
   }
   return deferred.promise;
 }
-
+/**
+ * Selects torrent file for download
+ */
+function startDownloadingFile(torrent, filename) {
+  var deferred = Q.defer();
+  getEngineForTorrentFile(torrent).done(
+    function (engine) {
+      var resolved = false;
+      engine.files.forEach(function (tfile) {
+        if (tfile.name === filename) {
+          resolved = true;
+          tfile.select();
+          deferred.resolve(argv.tmp + path.sep + path.basename(torrent) + path.sep + tfile.path);
+        }
+      });
+      if (!resolved) {
+        deferred.reject(new Error('File not found!'));
+      }
+    },
+    function (err) { //If reading .torrent was errorneous
+      deferred.reject(err);
+    }
+  );
+  return deferred.promise;
+}
 
 var helper = {};
+/**
+ * Sets options given from command line and defaults
+ */
+helper.setArgv = function (_argv) {
+  argv = _argv;
+};
 /**
  * Returns torrent files list from given folder
  */
@@ -133,7 +185,6 @@ helper.getTorrentInfo = function (tfile) {
   var deferred = Q.defer();
   getEngineForTorrentFile(tfile).done(
     function (engine) {
-      console.log('engine received');
       var ret = {files: []}, i, file, ext;
       for (i = 0; i < engine.sortedVideoFiles.length; ++i) {
         file = engine.sortedVideoFiles[i];
@@ -154,9 +205,64 @@ helper.getTorrentInfo = function (tfile) {
   return deferred.promise;
 };
 /**
+ *
+ */
+helper.getFileSize = function (torrent, filename) {
+  var deferred = Q.defer();
+  getEngineForTorrentFile(torrent).then(
+    function (engine) {
+      var resolved = false;
+      engine.files.forEach(function (file) {
+        if (file.name === filename) {
+          resolved = true;
+          deferred.resolve(file.length);
+        }
+      });
+      if (!resolved) {
+        deferred.reject(new Error('Not found'));
+      }
+    },
+    function (err) {
+      deferred.reject(err);
+    }
+  );
+  return deferred.promise;
+};
+/**
+ *
+ */
+helper.getMimeType = function (torrent, filename) {
+  var deferred = Q.defer();
+  startDownloadingFile(torrent, filename).then(
+    function (path) {
+      var existsResult = function (exists) {
+        if (exists) {
+          deferred.resolve(mime.lookup(path));
+        } else {
+          setTimeout(function () {
+            fs.exists(path, existsResult);
+          }, 1000);
+        }
+      };
+      fs.exists(path, existsResult);
+    },
+    function (err) {
+      deferred.reject(err);
+    }
+  );
+  return deferred.promise;
+};
+/**
+ *
+ */
+helper.FFProbe = function (torrent, filename) {
+  var ffCommand = ffmpeg('http://127.0.0.1:' + argv.port + '/raw/' + encodeURIComponent(torrent) + '/' + encodeURIComponent(filename));
+  return Q.ninvoke(ffCommand, "ffprobe");
+};
+/**
  * Returns readonly stream for file in torrent
  */
-helper.getTorrentFileStream = function (torrent, filename) {
+helper.getTorrentFileStream = function (torrent, filename, opts) {
   var deferred = Q.defer();
   getEngineForTorrentFile(torrent).done(
     function (engine) {
@@ -164,7 +270,7 @@ helper.getTorrentFileStream = function (torrent, filename) {
       engine.files.forEach(function (tfile) {
         if (tfile.name === filename) {
           resolved = true;
-          deferred.resolve(tfile.createReadStream());
+          deferred.resolve(tfile.createReadStream(opts));
         }
       });
       if (!resolved) {
@@ -179,3 +285,5 @@ helper.getTorrentFileStream = function (torrent, filename) {
 };
 
 module.exports = helper;
+module.exports.humanDuration = humanDuration;
+module.exports.humanFileSize = humanFileSize;

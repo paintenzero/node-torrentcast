@@ -9,7 +9,8 @@
     "q": "~> 1.1",
     "torrent-stream": "~> 0.16",
     "pump": "~> 1.0",
-    "mime": "~> 1.2"
+    "mime": "~> 1.2",
+    "fluent-ffmpeg": "~> 2.0"
   },
   "repository": {
     "type": "git",
