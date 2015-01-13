@@ -32,12 +32,14 @@ if (argv.h) {
  */
 var app = express();
 
-app.set('views', __dirname + '/templates')
+app.set('views', __dirname + '/templates');
 app.set('view engine', 'jade');
 app.get('/', routes.files);
 app.get('/info/:file', routes.torrentInfo);
 app.get('/probe/:torrent/:file', routes.probe);
 app.get('/raw/:torrent/:file', routes.rawFile);
+app.get('/transcode/:torrent/:file', routes.trancodeFile);
+
 
 var server = app.listen(argv.port, function () {
   console.log('Server started! Please, visit http://localhost:%d/ with your Chrome browser!', argv.port);

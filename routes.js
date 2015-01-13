@@ -39,8 +39,6 @@ routes.torrentInfo = function (req, res) {
         torrentname: req.params.file,
         files: info.files
       });
-      // var html = jade.renderFile('templates/info.jade', );
-      // res.write(html);
       res.end();
     },
     function (err) {
@@ -59,17 +57,30 @@ routes.probe = function (req, res) {
   helper.FFProbe(tfile, file).then(
     function (metadata) {
       metadata.format.duration = helper.humanDuration(metadata.format.duration);
-      metadata.format.size = helper.humanFileSize(metadata.format.size, false);
-      metadata.format.bit_rate = helper.humanFileSize(metadata.format.bit_rate, true);
-      // res.set('Content-Type', 'application/json');
-      // res.write(JSON.stringify(metadata));
-      res.render('probe', {
-        torrentname: req.params.torrent,
-        f: file,
-        meta: metadata
-      });
+      metadata.format.size = helper.humanFileSize(metadata.format.size, true);
+      metadata.format.bit_rate = helper.humanFileSize(metadata.format.bit_rate, false);
+      if (req.headers.accept !== undefined) {
+        var acceptArr = req.headers.accept.split(',');
+        var sent = false, i=0;
+        for (i; i<acceptArr.length; ++i) {
+          if (acceptArr[i] === 'application/json') {
+            res.set('Content-Type', 'application/json');
+            res.write(JSON.stringify(metadata));
+            sent = true;
+            break;
+          }
+        }
+      }
+      if (!sent) {
+        res.render('probe', {
+          torrentname: req.params.torrent,
+          f: file,
+          meta: metadata
+        });
+      }
       res.end();
-    },
+    }
+  ).catch(
     function (err) {
       console.log('Error getting file %s:%s stream: %s', tfile, file, err);
       res.end();
@@ -118,6 +129,31 @@ routes.rawFile = function (req, res) {
     res.status(500);
     res.end();
   });
+};
+
+routes.trancodeFile = function (req, res) {
+  var tfile = req.params.torrent;
+  var file = req.params.file;
+
+  helper.FFProbe(tfile, file).then(
+    function (metadata) {
+      res.set({
+        'Content-Type': 'video/x-matroska',
+        'X-Content-Duration': metadata.format.duration
+      });
+      return helper.getTranscodeStream(tfile, file, metadata);
+    }
+  ).then(
+    function (stream) {
+      pump(stream, res);
+    }
+  ).catch(
+    function (err) {
+      console.log('Error streaming transcoded file: %s', err);
+      res.status(500);
+      res.end();
+    }
+  );
 };
 
 

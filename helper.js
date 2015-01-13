@@ -137,12 +137,34 @@ function startDownloadingFile(torrent, filename) {
   return deferred.promise;
 }
 
+function getFileURI(torrent, filename) {
+  return 'http://127.0.0.1:' + argv.port + '/raw/' + encodeURIComponent(torrent) + '/' + encodeURIComponent(filename);
+}
+/**
+ * Returns stream with specified codec_type
+ */
+function get_stream(metadata, codec_type) {
+  var i;
+  for (i = 0; i < metadata.streams.length; ++i) {
+    if (metadata.streams[i].codec_type === codec_type) {
+      return metadata.streams[i];
+    }
+  }
+  return null;
+}
+
 var helper = {};
 /**
  * Sets options given from command line and defaults
  */
 helper.setArgv = function (_argv) {
   argv = _argv;
+  if (argv.ffmpeg_path !== undefined) {
+    ffmpeg.setFfmpegPath(argv.ffmpeg_path);
+  }
+  if (argv.ffprobe_path !== undefined) {
+    ffmpeg.setFfprobePath(argv.ffprobe_path);
+  }
 };
 /**
  * Returns torrent files list from given folder
@@ -256,7 +278,8 @@ helper.getMimeType = function (torrent, filename) {
  *
  */
 helper.FFProbe = function (torrent, filename) {
-  var ffCommand = ffmpeg('http://127.0.0.1:' + argv.port + '/raw/' + encodeURIComponent(torrent) + '/' + encodeURIComponent(filename));
+  var uri = 'video.mp4';//getFileURI(torrent, filename);
+  var ffCommand = ffmpeg(uri);
   return Q.ninvoke(ffCommand, "ffprobe");
 };
 /**
@@ -281,6 +304,37 @@ helper.getTorrentFileStream = function (torrent, filename, opts) {
       deferred.reject(err);
     }
   );
+  return deferred.promise;
+};
+/**
+ *
+ */
+helper.getTranscodeStream = function (torrent, filename, metadata) {
+  var deferred = Q.defer();
+  var uri = 'video.mp4';//getFileURI(torrent, filename);
+
+  var videoStream = get_stream(metadata, 'video');
+
+  var ffCommand = ffmpeg(uri);
+  // if (metadata.format_name !== 'mp4') {
+    ffCommand.format('mkv');
+  // }
+  // if (videoStream.codec_name !== 'mpeg4' && videoStream.codec_name !== 'h264' && videoStream.codec_name !== 'vp8') {
+    ffCommand.videoCodec('libx264');
+  // }
+  // if (1) {
+    ffCommand.audioCodec('libmp3lame')
+      // .audioFrequency(44100)
+      // .audioChannels(2)
+      // .audioBitrate(128 * 1000);
+  // }
+  ffCommand.on('error', function(err, stdout, stderr) {
+    console.log('An error while transcoding occurred: %s', err.message);
+    console.log('-----------\n%s', stdout);
+    console.log('-----------\n%s', stderr);
+  });
+
+  deferred.resolve(ffCommand.stream());
   return deferred.promise;
 };
 
