@@ -73,7 +73,10 @@ routes.probe = function (req, res) {
       }
       if (!sent) {
         res.render('probe', {
+<<<<<<< HEAD
           castlink: '/cast/'+tfile+'/'+file,
+=======
+>>>>>>> 8bfbd167abeb0b734b973a0939f47c86f308909c
           torrentname: req.params.torrent,
           f: file,
           meta: metadata
@@ -132,12 +135,17 @@ routes.rawFile = function (req, res) {
   });
 };
 
+<<<<<<< HEAD
 routes.castFile = function (req, res) {
+=======
+routes.trancodeFile = function (req, res) {
+>>>>>>> 8bfbd167abeb0b734b973a0939f47c86f308909c
   var tfile = req.params.torrent;
   var file = req.params.file;
 
   helper.FFProbe(tfile, file).then(
     function (metadata) {
+<<<<<<< HEAD
       /*res.set({
         'Content-Type': 'video/mp4',
         'X-Content-Duration': metadata.format.duration
@@ -156,6 +164,21 @@ routes.castFile = function (req, res) {
     },
     function (err) {
       console.error('Error starting transcoder: %s', err.message);
+=======
+      res.set({
+        'Content-Type': 'video/x-matroska',
+        'X-Content-Duration': metadata.format.duration
+      });
+      return helper.getTranscodeStream(tfile, file, metadata);
+    }
+  ).then(
+    function (stream) {
+      pump(stream, res);
+    }
+  ).catch(
+    function (err) {
+      console.log('Error streaming transcoded file: %s', err);
+>>>>>>> 8bfbd167abeb0b734b973a0939f47c86f308909c
       res.status(500);
       res.end();
     }

@@ -278,7 +278,11 @@ helper.getMimeType = function (torrent, filename) {
  *
  */
 helper.FFProbe = function (torrent, filename) {
+<<<<<<< HEAD
   var uri = getFileURI(torrent, filename);
+=======
+  var uri = 'video.mp4';//getFileURI(torrent, filename);
+>>>>>>> 8bfbd167abeb0b734b973a0939f47c86f308909c
   var ffCommand = ffmpeg(uri);
   return Q.ninvoke(ffCommand, "ffprobe");
 };
@@ -307,16 +311,25 @@ helper.getTorrentFileStream = function (torrent, filename, opts) {
   return deferred.promise;
 };
 /**
+<<<<<<< HEAD
  * Starts transcoding with ffmpeg and sends video data to RTMP server from arguments
  */
  var transcoder = null;
 helper.startTranscoder = function (torrent, filename, metadata) {
   var deferred = Q.defer();
   var uri = getFileURI(torrent, filename);
+=======
+ *
+ */
+helper.getTranscodeStream = function (torrent, filename, metadata) {
+  var deferred = Q.defer();
+  var uri = 'video.mp4';//getFileURI(torrent, filename);
+>>>>>>> 8bfbd167abeb0b734b973a0939f47c86f308909c
 
   var videoStream = get_stream(metadata, 'video');
 
   var ffCommand = ffmpeg(uri);
+<<<<<<< HEAD
 
   // if (videoStream.codec_name !== 'mpeg4' && videoStream.codec_name !== 'h264') {
     ffCommand
@@ -350,6 +363,27 @@ helper.startTranscoder = function (torrent, filename, metadata) {
   transcoder = ffCommand;
   ffCommand.run();
 
+=======
+  // if (metadata.format_name !== 'mp4') {
+    ffCommand.format('mkv');
+  // }
+  // if (videoStream.codec_name !== 'mpeg4' && videoStream.codec_name !== 'h264' && videoStream.codec_name !== 'vp8') {
+    ffCommand.videoCodec('libx264');
+  // }
+  // if (1) {
+    ffCommand.audioCodec('libmp3lame')
+      // .audioFrequency(44100)
+      // .audioChannels(2)
+      // .audioBitrate(128 * 1000);
+  // }
+  ffCommand.on('error', function(err, stdout, stderr) {
+    console.log('An error while transcoding occurred: %s', err.message);
+    console.log('-----------\n%s', stdout);
+    console.log('-----------\n%s', stderr);
+  });
+
+  deferred.resolve(ffCommand.stream());
+>>>>>>> 8bfbd167abeb0b734b973a0939f47c86f308909c
   return deferred.promise;
 };
 

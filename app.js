@@ -40,7 +40,11 @@ app.get('/', routes.files);
 app.get('/info/:file', routes.torrentInfo);
 app.get('/probe/:torrent/:file', routes.probe);
 app.get('/raw/:torrent/:file', routes.rawFile);
+<<<<<<< HEAD
 app.get('/cast/:torrent/:file', routes.castFile);
+=======
+app.get('/transcode/:torrent/:file', routes.trancodeFile);
+>>>>>>> 8bfbd167abeb0b734b973a0939f47c86f308909c
 
 
 var server = app.listen(argv.port, function () {

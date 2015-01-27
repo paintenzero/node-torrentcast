@@ -10,9 +10,13 @@
     "torrent-stream": "~> 0.16",
     "pump": "~> 1.0",
     "mime": "~> 1.2",
+<<<<<<< HEAD
     "fluent-ffmpeg": "*",
     "castv2-client": "~> 0.0",
     "mdns": "~> 2.2"
+=======
+    "fluent-ffmpeg": "*"
+>>>>>>> 8bfbd167abeb0b734b973a0939f47c86f308909c
   },
   "repository": {
     "type": "git",
