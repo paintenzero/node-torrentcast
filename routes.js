@@ -39,8 +39,6 @@ routes.torrentInfo = function (req, res) {
         torrentname: req.params.file,
         files: info.files
       });
-      // var html = jade.renderFile('templates/info.jade', );
-      // res.write(html);
       res.end();
     },
     function (err) {
@@ -59,17 +57,31 @@ routes.probe = function (req, res) {
   helper.FFProbe(tfile, file).then(
     function (metadata) {
       metadata.format.duration = helper.humanDuration(metadata.format.duration);
-      metadata.format.size = helper.humanFileSize(metadata.format.size, false);
-      metadata.format.bit_rate = helper.humanFileSize(metadata.format.bit_rate, true);
-      // res.set('Content-Type', 'application/json');
-      // res.write(JSON.stringify(metadata));
-      res.render('probe', {
-        torrentname: req.params.torrent,
-        f: file,
-        meta: metadata
-      });
+      metadata.format.size = helper.humanFileSize(metadata.format.size, true);
+      metadata.format.bit_rate = helper.humanFileSize(metadata.format.bit_rate, false);
+      if (req.headers.accept !== undefined) {
+        var acceptArr = req.headers.accept.split(',');
+        var sent = false, i=0;
+        for (i; i<acceptArr.length; ++i) {
+          if (acceptArr[i] === 'application/json') {
+            res.set('Content-Type', 'application/json');
+            res.write(JSON.stringify(metadata));
+            sent = true;
+            break;
+          }
+        }
+      }
+      if (!sent) {
+        res.render('probe', {
+          castlink: '/cast/'+tfile+'/'+file,
+          torrentname: req.params.torrent,
+          f: file,
+          meta: metadata
+        });
+      }
       res.end();
-    },
+    }
+  ).catch(
     function (err) {
       console.log('Error getting file %s:%s stream: %s', tfile, file, err);
       res.end();
@@ -118,6 +130,36 @@ routes.rawFile = function (req, res) {
     res.status(500);
     res.end();
   });
+};
+
+routes.castFile = function (req, res) {
+  var tfile = req.params.torrent;
+  var file = req.params.file;
+
+  helper.FFProbe(tfile, file).then(
+    function (metadata) {
+      /*res.set({
+        'Content-Type': 'video/mp4',
+        'X-Content-Duration': metadata.format.duration
+      });*/
+      return helper.startTranscoder(tfile, file, metadata);
+    }, function (err) {
+      console.error('Error getting ffprobe: %s', err.message);
+      res.status(500);
+      res.end();
+    }
+  ).then(
+    function () {
+      console.log('Transcoder started');
+      res.write(argv.hls+'/torrentcast.m3u8');
+      res.end();
+    },
+    function (err) {
+      console.error('Error starting transcoder: %s', err.message);
+      res.status(500);
+      res.end();
+    }
+  );
 };
 
 

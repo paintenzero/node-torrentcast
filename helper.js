@@ -137,12 +137,34 @@ function startDownloadingFile(torrent, filename) {
   return deferred.promise;
 }
 
+function getFileURI(torrent, filename) {
+  return 'http://127.0.0.1:' + argv.port + '/raw/' + encodeURIComponent(torrent) + '/' + encodeURIComponent(filename);
+}
+/**
+ * Returns stream with specified codec_type
+ */
+function get_stream(metadata, codec_type) {
+  var i;
+  for (i = 0; i < metadata.streams.length; ++i) {
+    if (metadata.streams[i].codec_type === codec_type) {
+      return metadata.streams[i];
+    }
+  }
+  return null;
+}
+
 var helper = {};
 /**
  * Sets options given from command line and defaults
  */
 helper.setArgv = function (_argv) {
   argv = _argv;
+  if (argv.ffmpeg_path !== undefined) {
+    ffmpeg.setFfmpegPath(argv.ffmpeg_path);
+  }
+  if (argv.ffprobe_path !== undefined) {
+    ffmpeg.setFfprobePath(argv.ffprobe_path);
+  }
 };
 /**
  * Returns torrent files list from given folder
@@ -174,7 +196,7 @@ helper.getTorrentFiles = function (dir) {
  * Returns info for given torrent file
  * @param <string> torrent filename with path
  * @return {files:[
-            { 
+            {
               name: <string>,
               path: <string>,
               length: <int>
@@ -256,7 +278,8 @@ helper.getMimeType = function (torrent, filename) {
  *
  */
 helper.FFProbe = function (torrent, filename) {
-  var ffCommand = ffmpeg('http://127.0.0.1:' + argv.port + '/raw/' + encodeURIComponent(torrent) + '/' + encodeURIComponent(filename));
+  var uri = getFileURI(torrent, filename);
+  var ffCommand = ffmpeg(uri);
   return Q.ninvoke(ffCommand, "ffprobe");
 };
 /**
@@ -281,6 +304,52 @@ helper.getTorrentFileStream = function (torrent, filename, opts) {
       deferred.reject(err);
     }
   );
+  return deferred.promise;
+};
+/**
+ * Starts transcoding with ffmpeg and sends video data to RTMP server from arguments
+ */
+ var transcoder = null;
+helper.startTranscoder = function (torrent, filename, metadata) {
+  var deferred = Q.defer();
+  var uri = getFileURI(torrent, filename);
+
+  var videoStream = get_stream(metadata, 'video');
+
+  var ffCommand = ffmpeg(uri);
+
+  // if (videoStream.codec_name !== 'mpeg4' && videoStream.codec_name !== 'h264') {
+    ffCommand
+      .videoCodec('libx264')
+      .addOptions('-profile:v baseline');
+  // }
+  if (1) {
+    ffCommand
+      .audioCodec('libvo_aacenc')
+      .audioFrequency(44100)
+      .audioChannels(2);
+  }
+  ffCommand
+    .format('flv')
+    .native();
+
+  ffCommand.output(argv.rtmp+'/torrentcast'); //TODO:
+
+  ffCommand.on('error', function(err) {
+    console.log('An error while transcoding occurred: %s', err.message);
+  });
+  ffCommand.on('end', function() {
+    console.log('Transcoder finished');
+  });
+  ffCommand.on('start', function () {
+    deferred.resolve();
+  });
+  ffCommand.on('progress', function(progress) {
+    console.log('Processing: ' + progress.percent + '% done');
+  });
+  transcoder = ffCommand;
+  ffCommand.run();
+
   return deferred.promise;
 };
 

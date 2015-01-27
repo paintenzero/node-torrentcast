@@ -7,6 +7,9 @@ html(lang="en")
       .name { font-weight:bold; }
   body
     h1= f + ' probe'
+
+    a(href=castlink) Cast
+
     table
       each value,key in meta.format
         tr
@@ -18,4 +21,4 @@ html(lang="en")
         each value,key in stream
           tr
             td(class="name")= key
-            td(class="value")=value
+            td(class="value")= value
