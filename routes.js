@@ -1,7 +1,9 @@
 var helper = require('./helper');
 var path = require('path');
 var pump = require('pump');
-
+var fs = require('fs');
+var Q = require('q');
+var util = require('util');
 
 var argv = null;
 function getTorrentPath(tfile) {
@@ -73,10 +75,7 @@ routes.probe = function (req, res) {
       }
       if (!sent) {
         res.render('probe', {
-<<<<<<< HEAD
           castlink: '/cast/'+tfile+'/'+file,
-=======
->>>>>>> 8bfbd167abeb0b734b973a0939f47c86f308909c
           torrentname: req.params.torrent,
           f: file,
           meta: metadata
@@ -135,21 +134,12 @@ routes.rawFile = function (req, res) {
   });
 };
 
-<<<<<<< HEAD
 routes.castFile = function (req, res) {
-=======
-routes.trancodeFile = function (req, res) {
->>>>>>> 8bfbd167abeb0b734b973a0939f47c86f308909c
   var tfile = req.params.torrent;
   var file = req.params.file;
 
   helper.FFProbe(tfile, file).then(
     function (metadata) {
-<<<<<<< HEAD
-      /*res.set({
-        'Content-Type': 'video/mp4',
-        'X-Content-Duration': metadata.format.duration
-      });*/
       return helper.startTranscoder(tfile, file, metadata);
     }, function (err) {
       console.error('Error getting ffprobe: %s', err.message);
@@ -159,31 +149,107 @@ routes.trancodeFile = function (req, res) {
   ).then(
     function () {
       console.log('Transcoder started');
-      res.write(argv.hls+'/torrentcast.m3u8');
+      res.write('http://127.0.0.1:8888/hls/torrentcast.m3u8');
       res.end();
     },
     function (err) {
       console.error('Error starting transcoder: %s', err.message);
-=======
       res.set({
         'Content-Type': 'video/x-matroska',
         'X-Content-Duration': metadata.format.duration
       });
       return helper.getTranscodeStream(tfile, file, metadata);
     }
-  ).then(
-    function (stream) {
-      pump(stream, res);
-    }
   ).catch(
     function (err) {
       console.log('Error streaming transcoded file: %s', err);
->>>>>>> 8bfbd167abeb0b734b973a0939f47c86f308909c
       res.status(500);
       res.end();
     }
   );
 };
+/**
+ * Serve the playlist
+ */
+routes.playlist = function (req, res) {
+  var filepath = '/tmp/hls/torrentcast.m3u8';
+  Q.ninvoke(fs, "stat", filepath).then(
+    function (stats) {
+      res.set('Content-Type', 'application/vnd.apple.mpegurl');
+      res.set('Content-Length', stats.size);
+      res.set('Last-Modified', stats.mtime);
+      res.set('Connection', 'keep-alive');
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Accept-Ranges', 'bytes');
+
+      //Range support
+      var start, end;
+      if (req.headers.range !== undefined) {
+        var range = req.headers.range;
+        var parts = range.replace(/bytes=/, "").split("-");
+        var partialstart = parts[0];
+        var partialend = parts[1];
+        start = parseInt(partialstart, 10);
+        end = partialend ? parseInt(partialend, 10) : stats.size - 1;
+        res.status(206);
+        res.set('Content-Range', 'bytes ' + start + '-' + end + '/' + stats.size);
+      } else {
+        start = 0;
+        end = stats.size - 1;
+      }
+      var fileStream = fs.createReadStream(filepath, {start: start, end: end});
+
+      pump(fileStream, res);
+    },
+    function (err) {
+      res.status(500);
+      res.write(err.message);
+      res.end();
+    }
+  ).catch(function(err) {
+    res.status(500);
+    res.write(err.message);
+    res.end();
+  });
+};
+
+routes.serveTS = function (req, res) {
+  var filepath = path.sep + 'tmp' + path.sep + 'hls' + path.sep + req.params.file;
+  Q.ninvoke(fs, "stat", filepath).then(
+    function (stats) {
+      res.set({
+        'Content-Type': 'video/mp2t',
+        'Content-Length': stats.size,
+        'Last-Modified': stats.mtime,
+        'Access-Control-Allow-Origin': '*',
+        'Accept-Ranges': 'bytes'
+      });
+
+      //Range support
+      var start, end;
+      if (req.headers.range !== undefined) {
+        var range = req.headers.range;
+        var parts = range.replace(/bytes=/, "").split("-");
+        var partialstart = parts[0];
+        var partialend = parts[1];
+        start = parseInt(partialstart, 10);
+        end = partialend ? parseInt(partialend, 10) : stats.size - 1;
+        res.status(206);
+        res.set('Content-Range', 'bytes ' + start + '-' + end + '/' + stats.size);
+      } else {
+        start = 0;
+        end = stats.size - 1;
+      }
+      var fileStream = fs.createReadStream(filepath, {start: start, end: end});
+      pump(fileStream, res);
+    },
+    function (err) {
+      res.status(500);
+      res.write(err.message);
+      res.end();
+    }
+  );
+}
 
 
 module.exports = routes;

@@ -2,21 +2,18 @@
   "name": "torrentcast",
   "description": "A software to cast torrent file to Chromecast",
   "dependencies": {
-    "express": "~> 4.10",
-    "rc": "~> 0.5",
-    "optimist": "~> 0.6",
-    "jade": "~> 1.8",
-    "q": "~> 1.1",
-    "torrent-stream": "~> 0.16",
-    "pump": "~> 1.0",
-    "mime": "~> 1.2",
-<<<<<<< HEAD
-    "fluent-ffmpeg": "*",
     "castv2-client": "~> 0.0",
-    "mdns": "~> 2.2"
-=======
-    "fluent-ffmpeg": "*"
->>>>>>> 8bfbd167abeb0b734b973a0939f47c86f308909c
+    "express": "~> 4.10",
+    "express-logger": "0.0.3",
+    "fluent-ffmpeg": "*",
+    "jade": "~> 1.8",
+    "mdns": "~> 2.2",
+    "mime": "~> 1.2",
+    "optimist": "~> 0.6",
+    "pump": "~> 1.0",
+    "q": "~> 1.1",
+    "rc": "~> 0.5",
+    "torrent-stream": "~> 0.16"
   },
   "repository": {
     "type": "git",
