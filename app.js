@@ -44,6 +44,7 @@ app.get('/raw/:torrent/:file', routes.rawFile);
 app.get('/cast/:torrent/:file', routes.castFile);
 app.get('/hls/torrentcast.m3u8', routes.playlist);
 app.get('/hls/:file', routes.serveTS);
+app.get('/casttest', routes.castTest);
 
 var server = app.listen(argv.port, function () {
   console.log('Server started! Please, visit http://localhost:%d/ with your Chrome browser!', argv.port);

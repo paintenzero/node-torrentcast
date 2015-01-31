@@ -249,7 +249,14 @@ routes.serveTS = function (req, res) {
       res.end();
     }
   );
-}
+};
+
+routes.castTest = function (req, res) {
+  res.render('cast', {
+
+  });
+  res.end();
+};
 
 
 module.exports = routes;
