@@ -1,6 +1,7 @@
 {
   "name": "torrentcast",
   "description": "A software to cast torrent file to Chromecast",
+  "license": "MIT",
   "dependencies": {
     "castv2-client": "~> 0.0",
     "express": "~> 4.10",
