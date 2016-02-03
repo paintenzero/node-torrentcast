@@ -1,23 +1,16 @@
 {
   "name": "torrentcast",
-  "description": "A software to cast torrent file to Chromecast",
+  "description": "A software to cast torrent file to a browser",
   "license": "MIT",
+  "version": "0.1.0",
   "dependencies": {
-    "castv2-client": "~> 0.0",
-    "express": "~> 4.10",
-    "express-logger": "0.0.3",
-    "fluent-ffmpeg": "*",
-    "jade": "~> 1.8",
-    "mdns": "~> 2.2",
-    "mime": "~> 1.2",
-    "optimist": "~> 0.6",
-    "pump": "~> 1.0",
-    "q": "~> 1.1",
-    "rc": "~> 0.5",
-    "torrent-stream": "~> 0.16"
+    "torrent-stream": "^1.0.2"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/paintenzero/node-torrentcast.git"
+  },
+  "scripts": {
+    "start": "node app/app.js"
   }
 }
