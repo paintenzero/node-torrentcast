@@ -73,11 +73,7 @@ app.get('/version', routes.getVersion)
 app.get('/info/:magnet', routes.torrentInfo)
 app.get('/raw/:magnet/:ind', routes.rawFile)
 app.get('/probe/:magnet/:ind', routes.probe)
-/*
-app.get('/cast/:torrent/:file', routes.castFile)
-app.get('/hls/torrentcast.m3u8', routes.playlist)
-app.get('/hls/:file', routes.serveTS)
-*/
+app.get('/playlist/:magnet/:ind', routes.hlsPlaylist)
 
 app.listen(argv.port, function () {
   debug('Server started! Please, visit http://localhost:%d/ with your Chrome browser!', argv.port)
