@@ -23,10 +23,7 @@
 'use strict'
 const co = require('co')
 const EngineManager = require('../lib/EngineManager')
-// var path = require('path')
-// var pump = require('pump')
-// var fs = require('fs')
-// var util = require('util')
+const pump = require('pump')
 
 /**
  * @fn getVersion
@@ -42,23 +39,6 @@ function getVersion (req, res) {
 }
 module.exports.getVersion = getVersion
 
-/*
-routes.files = function (req, res) {
-  helper.getTorrentFiles(argv.folder).then(
-    function (files) {
-      res.render('files', {
-        files: files
-      })
-      res.end()
-    },
-    function (err) {
-      console.err('Error reading torrents directory: %s', err)
-      res.status(500)
-      res.end()
-    }
-  )
-}*/
-
 /**
  * @fn torrentInfo
  * @desc Outputs info about torrent specified
@@ -70,25 +50,13 @@ function torrentInfo (req, res) {
   var magnet = req.params.magnet
   co(function * () {
     var files = yield EngineManager.getFilesInTorrent(magnet)
-    res.send(JSON.stringify({'files': files}))
+    res.send(JSON.stringify({'status': 'ok', 'files': files}))
   }).then(function () {
     res.end()
+  }, function (err) {
+    res.send(JSON.stringify({'status': 'error', 'description': err.description}))
+    res.end()
   })
-
-  /* helper.getTorrentInfo(filepath).then(
-    function (info) {
-      res.render('info', {
-        torrentname: req.params.file,
-        files: info.files
-      })
-      res.end()
-    },
-    function (err) {
-      console.err('Error reading file %s: %s', filepath, err)
-      res.status(500)
-      res.end()
-    }
-  )*/
 }
 module.exports.torrentInfo = torrentInfo
 /*
@@ -131,14 +99,52 @@ routes.probe = function (req, res) {
   )
 }*/
 /**
- * Streams raw file to HTTP stream
+ * @fn rawFile
+ * @desc Streams raw file to HTTP stream
+ * @param req HTTP request
+ * @param res HTTP response
+ * @return none
  */
+function rawFile (req, res) {
+  var magnet = req.params.magnet
+  var fileInd = req.params.ind
+  
+  co(function * () {
+    var fileSize = yield EngineManager.getFileSize(magnet, fileInd)
+    var mimeType = yield EngineManager.getFileMimeType(magnet, fileInd)
+    var start = 0
+    var end = fileSize - 1
+    if (req.headers.range !== undefined) {
+      var range = req.headers.range
+      var parts = range.replace(/bytes=/, '').split('-')
+      var partialstart = parts[0]
+      var partialend = parts[1]
+      start = parseInt(partialstart, 10)
+      end = partialend ? parseInt(partialend, 10) : total - 1
+      res.status(206)
+      res.set('Content-Range', 'bytes ' + start + '-' + end + '/' + total)
+    }
+    
+    res.set({
+      'Content-Length': (end - start) + 1,
+      'Content-Type': mimeType,
+      'Accept-Ranges': 'bytes'
+    })
+    
+    var stream = yield EngineManager.getFileStream(magnet, fileInd)
+    pump(res, stream)
+  }).catch(function (err) {
+    res.send(JSON.stringify({'status': 'error', 'description': err.message}))
+    res.end()
+  })
+}
+module.exports.rawFile = rawFile
 /*
 routes.rawFile = function (req, res) {
   var tfile = getTorrentPath(req.params.torrent)
   var file = req.params.file
 
-  res.set('Accept-Ranges', 'bytes')
+  
   var total = 0, start, end
   helper.getFileSize(tfile, file).then(
     function (size) {

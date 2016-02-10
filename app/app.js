@@ -36,7 +36,8 @@ const argv = parseArgs(process.argv.slice(2), {
   'boolean': ['help'],
   'alias': {
     'h': 'help',
-    'p': 'port'
+    'p': 'port',
+    't': 'tmp'
   },
   'default': {
     'port': 9000
@@ -51,6 +52,7 @@ if (argv.h) {
   process.exit(-1)
 }
 
+if (argv.t) require ('../lib/EngineManager').setTemporaryDirectory(argv.t)
 /**
  * Start HTTP server
  */
@@ -60,9 +62,9 @@ app.use(morgan('combined'))
 app.use(express.static('public'))
 app.get('/version', routes.getVersion)
 app.get('/info/:magnet', routes.torrentInfo)
+app.get('/raw/:magnet/:ind', routes.rawFile)
 /*
 app.get('/probe/:torrent/:file', routes.probe)
-app.get('/raw/:torrent/:file', routes.rawFile)
 app.get('/cast/:torrent/:file', routes.castFile)
 app.get('/hls/torrentcast.m3u8', routes.playlist)
 app.get('/hls/:file', routes.serveTS)
@@ -75,7 +77,8 @@ app.listen(argv.port, function () {
 
 function printUsage () {
   var tabs = '\t\t'
-  console.log('Usage: %s [-h] [-p port]', process.title)
+  console.log('Usage: %s [-h] [-p port] [-t dir]', process.title)
   console.log('  -p, --port%sChange the http port (default: 9000)', tabs)
+  console.log('  -t, --tmp%sFolder to store temporary downloaded files', tabs)
   console.log('  -h, --help%sShows this help', tabs)
 }
