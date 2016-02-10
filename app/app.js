@@ -26,6 +26,7 @@ const express = require('express')
 const morgan = require('morgan')
 const debug = require('debug')('torrentcast')
 const routes = require('./routes')
+const ffmpeg = require('fluent-ffmpeg')
 
 process.title = 'torrentcast'
 
@@ -37,6 +38,7 @@ const argv = parseArgs(process.argv.slice(2), {
   'alias': {
     'h': 'help',
     'p': 'port',
+    'f': 'ffmpeg',
     't': 'tmp'
   },
   'default': {
@@ -44,15 +46,22 @@ const argv = parseArgs(process.argv.slice(2), {
   }
 })
 
-// routes.setArgv(argv)
-
 // If user requested help instructions
 if (argv.h) {
   printUsage()
   process.exit(-1)
 }
-
+// Set temporary directory path
 if (argv.t) require ('../lib/EngineManager').setTemporaryDirectory(argv.t)
+
+// Set ffmpeg executables path
+if (argv.f) {
+  ffmpeg.setFfmpegPath(argv.f + '/ffmpeg')
+  ffmpeg.setFfprobePath(argv.f + '/ffprobe')
+}
+
+routes.setHttpPort(argv.port)
+
 /**
  * Start HTTP server
  */
@@ -63,12 +72,11 @@ app.use(express.static('public'))
 app.get('/version', routes.getVersion)
 app.get('/info/:magnet', routes.torrentInfo)
 app.get('/raw/:magnet/:ind', routes.rawFile)
+app.get('/probe/:magnet/:ind', routes.probe)
 /*
-app.get('/probe/:torrent/:file', routes.probe)
 app.get('/cast/:torrent/:file', routes.castFile)
 app.get('/hls/torrentcast.m3u8', routes.playlist)
 app.get('/hls/:file', routes.serveTS)
-app.get('/casttest', routes.castTest)
 */
 
 app.listen(argv.port, function () {
@@ -79,6 +87,7 @@ function printUsage () {
   var tabs = '\t\t'
   console.log('Usage: %s [-h] [-p port] [-t dir]', process.title)
   console.log('  -p, --port%sChange the http port (default: 9000)', tabs)
-  console.log('  -t, --tmp%sFolder to store temporary downloaded files', tabs)
+  console.log('  -f, --ffmpeg%sFFmpeg binaries location (default: system\'s executables paths)', tabs)
+  console.log('  -t, --tmp%sFolder to store temporary downloaded files (default: /tmp)', tabs)
   console.log('  -h, --help%sShows this help', tabs)
 }

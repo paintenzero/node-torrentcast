@@ -23,7 +23,13 @@
 'use strict'
 const co = require('co')
 const EngineManager = require('../lib/EngineManager')
+const transcoder = require('../lib/Transcoder')
 const pump = require('pump')
+
+var httpPort = 9000
+module.exports.setHttpPort = function (newPort) {
+  httpPort = newPort
+}
 
 /**
  * @fn getVersion
@@ -54,17 +60,35 @@ function torrentInfo (req, res) {
   }).then(function () {
     res.end()
   }, function (err) {
-    res.send(JSON.stringify({'status': 'error', 'description': err.description}))
+    res.send(JSON.stringify({'status': 'error', 'description': err.message}))
     res.end()
   })
 }
 module.exports.torrentInfo = torrentInfo
-/*
-routes.probe = function (req, res) {
-  var tfile = req.params.torrent
-  var file = req.params.file
 
-  helper.FFProbe(tfile, file).then(
+/**
+ * @fn probeVideo
+ * @desc Runs ffprobe on selected file
+ * @param req HTTP request
+ * @param res HTTP response
+ * @return none
+ */
+function probeVideo (req, res) {
+  var magnet = req.params.magnet
+  var fileInd = req.params.ind
+
+  var rawUri = 'http://localhost:' + httpPort + '/raw/' + encodeURIComponent(magnet) + '/' + fileInd
+  co (function * () {
+    var metadata = yield transcoder.probe(rawUri)
+    res.set('Content-Type', 'application/json')
+    res.send(JSON.stringify(metadata))
+  }).catch(function (err) {
+    res.send(JSON.stringify({'status': 'error', 'description': err.message}))
+    res.end()  
+  })
+  
+  
+  /*helper.FFProbe(tfile, file).then(
     function (metadata) {
       metadata.format.duration = helper.humanDuration(metadata.format.duration)
       metadata.format.size = helper.humanFileSize(metadata.format.size, true)
@@ -96,8 +120,10 @@ routes.probe = function (req, res) {
       console.log('Error getting file %s:%s stream: %s', tfile, file, err)
       res.end()
     }
-  )
-}*/
+  )*/
+}
+module.exports.probe = probeVideo
+  
 /**
  * @fn rawFile
  * @desc Streams raw file to HTTP stream
@@ -116,7 +142,6 @@ function rawFile (req, res) {
     var end = fileSize - 1
     if (req.headers.range !== undefined) {
       var range = req.headers.range
-      console.log('RANGE', range)
       var parts = range.replace(/bytes=/, '').split('-')
       var partialstart = parts[0]
       var partialend = parts[1]
@@ -126,7 +151,6 @@ function rawFile (req, res) {
       res.set('Content-Range', 'bytes ' + start + '-' + end + '/' + fileSize)
     }
     
-    console.log("LENGTH", end-start+1)
     res.set({
       'Content-Length': (end - start) + 1,
       'Content-Type': mimeType,
@@ -142,49 +166,9 @@ function rawFile (req, res) {
   })
 }
 module.exports.rawFile = rawFile
-/*
-routes.rawFile = function (req, res) {
-  var tfile = getTorrentPath(req.params.torrent)
-  var file = req.params.file
 
-  
-  var total = 0, start, end
-  helper.getFileSize(tfile, file).then(
-    function (size) {
-      total = size
-      // Range support
-      if (req.headers.range !== undefined) {
-        var range = req.headers.range
-        var parts = range.replace(/bytes=/, '').split('-')
-        var partialstart = parts[0]
-        var partialend = parts[1]
-        start = parseInt(partialstart, 10)
-        end = partialend ? parseInt(partialend, 10) : total - 1
-        res.status(206)
-        res.set('Content-Range', 'bytes ' + start + '-' + end + '/' + total)
-      } else {
-        start = 0
-        end = total - 1
-      }
-      res.set('Content-Length', (end - start) + 1)
-      return helper.getMimeType(tfile, file)
-    }
-  ).then(function (mime) {
-    res.set('Content-Type', mime)
-    if (start === 0 && end === total - 1) {
-      return helper.getTorrentFileStream(tfile, file)
-    }
-    return helper.getTorrentFileStream(tfile, file, {start: start, end: end})
-  }).then(function (stream) {
-    pump(stream, res)
-  }).catch(function (err) {
-    console.log('Error streaming raw file: %s', err)
-    res.status(500)
-    res.end()
-  })
-}
 
-routes.castFile = function (req, res) {
+/*routes.castFile = function (req, res) {
   var tfile = req.params.torrent
   var file = req.params.file
 
