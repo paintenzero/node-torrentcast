@@ -132,7 +132,7 @@ function rawFile (req, res) {
     })
     
     var stream = yield EngineManager.getFileStream(magnet, fileInd)
-    pump(res, stream)
+    pump(stream, res)
   }).catch(function (err) {
     res.send(JSON.stringify({'status': 'error', 'description': err.message}))
     res.end()
