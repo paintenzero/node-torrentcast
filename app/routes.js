@@ -116,15 +116,17 @@ function rawFile (req, res) {
     var end = fileSize - 1
     if (req.headers.range !== undefined) {
       var range = req.headers.range
+      console.log('RANGE', range)
       var parts = range.replace(/bytes=/, '').split('-')
       var partialstart = parts[0]
       var partialend = parts[1]
       start = parseInt(partialstart, 10)
-      end = partialend ? parseInt(partialend, 10) : total - 1
+      end = partialend ? parseInt(partialend, 10) : fileSize - 1
       res.status(206)
-      res.set('Content-Range', 'bytes ' + start + '-' + end + '/' + total)
+      res.set('Content-Range', 'bytes ' + start + '-' + end + '/' + fileSize)
     }
     
+    console.log("LENGTH", end-start+1)
     res.set({
       'Content-Length': (end - start) + 1,
       'Content-Type': mimeType,
@@ -134,6 +136,7 @@ function rawFile (req, res) {
     var stream = yield EngineManager.getFileStream(magnet, fileInd)
     pump(stream, res)
   }).catch(function (err) {
+    console.log(err)
     res.send(JSON.stringify({'status': 'error', 'description': err.message}))
     res.end()
   })
