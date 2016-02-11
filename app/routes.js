@@ -149,7 +149,7 @@ function hlsPlaylist (req, res) {
   var rawUri = getLocalhostUri() + '/raw/' + encodeURIComponent(magnet) + '/' + fileInd
   var playlist = TranscoderManager.getPlaylist(rawUri)
   
-  res.send(JSON.stringify({'playlist_path': playlist}))
+  res.send(JSON.stringify({'status': 'ok', 'playlist_path': playlist}))
   res.end()
 }
 module.exports.hlsPlaylist = hlsPlaylist

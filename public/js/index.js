@@ -33,8 +33,25 @@ function setFileHandlers () {
     e.preventDefault()
     var ind = parseInt($(this).attr('data-ind'))
     if (ind < files.length) {
-      var reqURI = '/raw/' + encodeURIComponent(magnet) + '/' + ind
-      console.log(reqURI)
+      var reqURI = '/playlist/' + encodeURIComponent(magnet) + '/' + ind
+      $.get({
+        'url': reqURI,
+	'dataType': 'json',
+	'success': function (data) {
+	  if (data.status === 'ok') {
+	    if(Hls.isSupported()) {
+  	      var video = document.getElementById('video')
+	      var hls = new Hls()
+	      hls.loadSource(data.playlist_path)
+	      hls.attachMedia(video)
+	      hls.on(Hls.Events.MANIFEST_PARSED, function () {
+	        video.play()
+	      })
+	    }
+	    //$('#video-container').append('<video width="1280" height="720" autoplay="autoplay" src="' + data.playlist_path + '">')
+	  }
+	}
+      })
     }
   })
 }
